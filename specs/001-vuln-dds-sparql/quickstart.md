@@ -20,11 +20,11 @@ docker compose -f docker/docker-compose.yml up --build
 2. Install Python dependencies (if running locally):
 
 ```bash
-# using pip
-python -m pip install -r requirements.txt
+# Recommended: using the `uv` package manager (sync installs all dependencies)
+uv sync
 
-# or using uv if available (user requested 'uv' package manager)
-uv install
+# Fallback: use the supplied requirements.txt if `uv` is not available
+python -m pip install -r requirements.txt
 ```
 
 3. Run the API server (inside container or locally):
@@ -47,7 +47,7 @@ python -m src.main client-sparql --query 'SELECT ?s WHERE { ?s ?p ?o } LIMIT 10'
 ```
 
 Notes:
+
 - Web UI for RabbitMQ management is available at `http://localhost:15672` (guest/guest)
 - Oxigraph HTTP UI available at `http://localhost:7878`
 - PostgreSQL on `localhost:5432` (user: postgres, pass: postgres)
-

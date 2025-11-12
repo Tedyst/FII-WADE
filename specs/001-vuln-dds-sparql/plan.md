@@ -1,123 +1,98 @@
-# Implementation Plan: Vulnerability DDS with SPARQL Endpoint
+# Implementation Plan: [FEATURE]
 
-**Branch**: `001-vuln-dds-sparql` | **Date**: 2025-11-12 | **Spec**: [spec.md](./spec.md)
-**Input**: Feature specification from `/specs/001-vuln-dds-sparql/spec.md`
+**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/specs/[###-feature-name]/spec.md`
 
 **Note**: This template is filled in by the `/speckit.plan` command. See `.specify/templates/commands/plan.md` for the execution workflow.
 
 ## Summary
 
-Build a real-time Data Distribution Service (DDS) for web application vulnerability alerts using NVD API and EUVDB datasets. The system provides pub/sub notifications for security issues categorized by software class (CMS, frameworks, modules, shopping carts), a SPARQL endpoint for querying vulnerability solutions/advisories, multi-format output (HTML+RDFa, JSON-LD with schema.org), WebSub-compatible hub, and a smart caching proxy backed by Redis.
+[Extract from feature spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+  
-**Primary Dependencies**: FastAPI (API/proxy server), pyoxigraph (SPARQL/RDF storage), aiohttp (async HTTP client), redis-py (caching), pydantic (data validation)  
-**Storage**: PostgreSQL (persistent metadata/subscriptions), pyoxigraph/oxigraph (RDF triple store for SPARQL), Redis (HTTP proxy cache)  
-**Testing**: pytest, pytest-asyncio, httpx (async test client)  
-**Target Platform**: Linux server (Docker containerized)  
-**Project Type**: Single Python project with CLI entry point (main.py with argparse subcommands)  
-**Performance Goals**: Handle 100+ concurrent subscribers, SPARQL queries <500ms p95, proxy cache hit ratio >70%  
-**Constraints**: Extensible data source architecture (NVD + EUVDB initially), WebSub-compliant, schema.org vocabulary compatibility  
-**Scale/Scope**: 10K+ vulnerability records, 50+ concurrent pub/sub connections, multi-tenant software class filtering
+<!--
+  ACTION REQUIRED: Replace the content in this section with the technical details
+  for the project. The structure here is presented in advisory capacity to guide
+  the iteration process.
+-->
+
+**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
+**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
+**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
+**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
+**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
+**Project Type**: [single/web/mobile - determines source structure]  
+**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
+**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
+**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-**Status**: ✅ PASS
-
-Verifying compliance with [WADE Vulnerability DDS Constitution v1.0.0](../../.specify/memory/constitution.md):
-
-| Principle | Compliance | Notes |
-|-----------|-----------|-------|
-| I. Simplicity First | ✅ PASS | Single Python project, standard libraries preferred, CLI-based design avoids unnecessary web frameworks for ingestion/admin tasks |
-| II. Structured Logging | ✅ PASS | Plan mandates Python `logging` module throughout |
-| III. Test Coverage | ✅ PASS | Project structure includes `tests/unit/`, `tests/integration/`, `tests/contract/` |
-| IV. Modular Design | ✅ PASS | Services isolated (ingestion/, pubsub/, sparql/, proxy/), config externalized, BaseSource interface for extensibility |
-| V. UX Consistency | ✅ PASS | CLI uses argparse subcommands, API uses FastAPI (standard REST), SPARQL follows W3C spec |
-| Code Quality | ✅ PASS | Type hints, docstrings, PEP 8 planned |
-| Performance | ✅ PASS | Goals align with constitution: <2s SPARQL queries, <500ms pubsub latency, 10 concurrent subscribers |
-| Security | ✅ PASS | Input validation planned, rate limiting for ingestion, SPARQL timeout limits |
-
-**No violations detected**. Will re-evaluate after Phase 1 design with concrete implementation details.
+[Gates determined based on constitution file]
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```text
-specs/001-vuln-dds-sparql/
+specs/[###-feature]/
 ├── plan.md              # This file (/speckit.plan command output)
 ├── research.md          # Phase 0 output (/speckit.plan command)
 ├── data-model.md        # Phase 1 output (/speckit.plan command)
 ├── quickstart.md        # Phase 1 output (/speckit.plan command)
 ├── contracts/           # Phase 1 output (/speckit.plan command)
-│   ├── openapi.yaml     # REST API spec (pub/sub, SPARQL, proxy)
-│   └── rdf-ontology.ttl # RDF/OWL vocabulary for vulnerabilities
 └── tasks.md             # Phase 2 output (/speckit.tasks command - NOT created by /speckit.plan)
 ```
 
 ### Source Code (repository root)
+<!--
+  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
+  for this feature. Delete unused options and expand the chosen structure with
+  real paths (e.g., apps/admin, packages/something). The delivered plan must
+  not include Option labels.
+-->
 
 ```text
+# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
 src/
-├── models/              # Pydantic models, RDF entity mappers
-│   ├── vulnerability.py
-│   ├── software.py
-│   ├── advisory.py
-│   └── subscription.py
-├── services/            # Core business logic
-│   ├── ingestion/
-│   │   ├── nvd_client.py
-│   │   ├── euvdb_client.py
-│   │   └── base_source.py
-│   ├── pubsub/
-│   │   ├── broker.py
-│   │   ├── websub_hub.py
-│   │   └── subscriber.py
-│   ├── sparql/
-│   │   ├── endpoint.py
-│   │   └── query_builder.py
-│   ├── rdf/
-│   │   ├── serializer.py
-│   │   └── schema_org_mapper.py
-│   └── proxy/
-│       ├── cache_manager.py
-│       └── proxy_handler.py
-├── api/                 # FastAPI routes
-│   ├── pubsub_routes.py
-│   ├── sparql_routes.py
-│   ├── proxy_routes.py
-│   └── admin_routes.py
-├── cli/                 # CLI subcommands
-│   ├── api_server.py
-│   ├── ingest.py
-│   ├── client_sparql.py
-│   └── admin.py
-├── lib/                 # Shared utilities
-│   ├── config.py
-│   ├── db.py
-│   └── logging.py
-└── main.py              # Entry point with argparse
+├── models/
+├── services/
+├── cli/
+└── lib/
 
 tests/
-├── contract/            # API contract tests
-├── integration/         # End-to-end flows
-└── unit/                # Unit tests per module
+├── contract/
+├── integration/
+└── unit/
 
-docker/
-├── docker-compose.yml   # PostgreSQL, Redis, Oxigraph services
-├── Dockerfile           # Python app container
-└── init-scripts/        # Database initialization
+# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
+backend/
+├── src/
+│   ├── models/
+│   ├── services/
+│   └── api/
+└── tests/
 
-config/
-├── settings.yaml        # Application configuration
-└── ontology/            # RDF vocabularies
-    └── vuln-ontology.ttl
+frontend/
+├── src/
+│   ├── components/
+│   ├── pages/
+│   └── services/
+└── tests/
+
+# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
+api/
+└── [same as backend above]
+
+ios/ or android/
+└── [platform-specific structure: feature modules, UI flows, platform tests]
 ```
 
-**Structure Decision**: Single Python project structure chosen because all components (API, ingestion, SPARQL, proxy) share the same runtime and data models. CLI-based architecture with subcommands allows flexible deployment (run as server, batch ingestion, or client utilities).
+**Structure Decision**: [Document the selected structure and reference the real
+directories captured above]
 
 ## Complexity Tracking
 

@@ -1,5 +1,5 @@
-"""CLI ingestion helpers (stubs)
-"""
+"""CLI ingestion helpers (stubs)"""
+
 import asyncio
 import logging
 

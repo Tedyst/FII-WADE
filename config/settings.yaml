@@ -1,0 +1,74 @@
+# WADE Vulnerability DDS Configuration
+
+# Software Class Mappings (CPE to category)
+software_classes:
+  cms:
+    - wordpress
+    - drupal
+    - joomla
+    - typo3
+    - contao
+    - concrete5
+  
+  framework:
+    - django
+    - rails
+    - laravel
+    - symfony
+    - spring
+    - express
+    - flask
+    - fastapi
+  
+  shopping_cart:
+    - magento
+    - woocommerce
+    - prestashop
+    - opencart
+    - shopify
+    - bigcommerce
+  
+  module:
+    - apache
+    - nginx
+    - php
+    - nodejs
+    - python
+
+# Cache TTL heuristics (seconds)
+cache_ttl:
+  cve_data: 86400      # 24 hours - CVEs rarely change
+  exploit_data: 3600   # 1 hour - exploits may be updated
+  sparql_query: 300    # 5 minutes - dataset updates during ingestion
+  advisory: 43200      # 12 hours - advisories moderately stable
+
+# Performance limits
+limits:
+  max_sparql_results: 1000
+  sparql_timeout_seconds: 10
+  max_concurrent_subscribers: 50
+  ingestion_batch_size: 100
+  webhook_retry_attempts: 3
+  webhook_retry_backoff_seconds: [1, 5, 15]
+
+# RDF namespaces
+namespaces:
+  vuln: "http://wade.example.org/vuln#"
+  schema: "https://schema.org/"
+  dcterms: "http://purl.org/dc/terms/"
+
+# Logging
+logging:
+  version: 1
+  disable_existing_loggers: false
+  formatters:
+    standard:
+      format: "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+  handlers:
+    console:
+      class: logging.StreamHandler
+      formatter: standard
+      stream: ext://sys.stderr
+  root:
+    level: INFO
+    handlers: [console]

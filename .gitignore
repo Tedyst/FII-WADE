@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+ENV/
+dist/
+build/
+*.egg-info/
+.eggs/
+*.egg
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.ruff_cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.env
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Docker
+*.dockerignore
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+
+# RDF / RocksDB
+data/
+*.rdb
+oxigraph_data/
+
+# Temporary
+*.tmp
+*.temp
+*.bak
+*.backup
+tmp/
+temp/

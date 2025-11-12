@@ -42,7 +42,7 @@
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T010 Create base Pydantic models in src/models/__init__.py (import structure)
+- [ ] T010 Create base Pydantic models in src/models/**init**.py (import structure)
 - [ ] T011 [P] Implement database connection pool in src/lib/db.py using asyncpg
 - [ ] T012 [P] Create pyoxigraph store initialization in src/lib/rdf_store.py with RocksDB backend
 - [ ] T013 [P] Implement base data source interface in src/services/ingestion/base_source.py (abstract class with fetch_vulnerabilities, parse_record, get_software_class methods)

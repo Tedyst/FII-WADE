@@ -3,16 +3,31 @@
 
 Usage: python -m src.main api-server | ingest-nvd | ingest-euvd | client-sparql | run-proxy
 """
+
 import argparse
 import sys
 
 from importlib import import_module
 
 
-def run_api_server(args):
-    from api.server import run as run_server
+def run_api_server(args: argparse.Namespace) -> None:
+    """Run the FastAPI server.
 
-    run_server(args)
+    Args:
+        args: Command-line arguments
+    """
+    import uvicorn
+
+    from lib.config import get_settings
+
+    settings = get_settings()
+    uvicorn.run(
+        "api.app:app",
+        host=settings.app_host,
+        port=settings.app_port,
+        reload=getattr(args, "reload", False),
+        log_level=settings.log_level.lower(),
+    )
 
 
 def run_ingest_nvd(args):
