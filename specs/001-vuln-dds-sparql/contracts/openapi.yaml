@@ -1,0 +1,83 @@
+openapi: 3.0.3
+info:
+  title: Vulnerability DDS API
+  version: 0.1.0
+  description: API for ingestion, pub/sub, SPARQL queries and proxy
+servers:
+  - url: http://localhost:8000
+paths:
+  /ingest/nvd:
+    post:
+      summary: Fetch latest CVEs from NVD and ingest into RDF store
+      responses:
+        '200':
+          description: Ingestion started
+  /ingest/euvd:
+    post:
+      summary: Fetch latest from EUVD API and ingest
+      responses:
+        '200':
+          description: Ingestion started
+  /websub/hub:
+    post:
+      summary: WebSub hub endpoint (subscribe/publish)
+      requestBody:
+        content:
+          application/x-www-form-urlencoded: {}
+      responses:
+        '202':
+          description: Accepted
+  /subscriptions:
+    get:
+      summary: List subscriptions
+      responses:
+        '200':
+          description: OK
+    post:
+      summary: Create subscription
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                topic:
+                  type: string
+                callback_url:
+                  type: string
+      responses:
+        '201':
+          description: Created
+  /sparql:
+    post:
+      summary: Execute SPARQL query
+      requestBody:
+        content:
+          application/sparql-query: {}
+          application/json: {}
+      responses:
+        '200':
+          description: Query results
+  /proxy/{path}:
+    get:
+      summary: Proxy to upstream services
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Proxied response
+components:
+  schemas:
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+        topic:
+          type: string
+        callback_url:
+          type: string

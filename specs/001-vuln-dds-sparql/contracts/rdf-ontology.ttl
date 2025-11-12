@@ -1,0 +1,17 @@
+@prefix vuln: <http://wade.example.org/vuln#> .
+@prefix schema: <https://schema.org/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+vuln:Vulnerability a rdfs:Class ;
+  rdfs:label "Vulnerability" ;
+  rdfs:comment "Represents a vulnerability record (CVE or similar)." .
+
+vuln:cveId a rdf:Property ;
+  rdfs:label "CVE Identifier" ;
+  rdfs:domain vuln:Vulnerability ;
+  rdfs:range xsd:string .
+
+vuln:affectsSoftware a rdf:Property ;
+  rdfs:label "affectsSoftware" ;
+  rdfs:domain vuln:Vulnerability ;
+  rdfs:range schema:SoftwareApplication .

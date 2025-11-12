@@ -1,0 +1,51 @@
+version: '3.8'
+services:
+  app:
+    build: .
+    image: wade-vuln-dds:latest
+    container_name: wade-app
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+      - oxigraph
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/wade
+      - REDIS_URL=redis://redis:6379/0
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+      - OXIGRAPH_DIR=/data/oxigraph
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./:/app
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: wade
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+  oxigraph:
+    image: ghcr.io/oxigraph/oxigraph:latest
+    environment:
+      - OXIGRAPH_DIR=/data
+    volumes:
+      - oxidata:/data
+    ports:
+      - "7878:7878"
+
+volumes:
+  pgdata:
+  oxidata:
