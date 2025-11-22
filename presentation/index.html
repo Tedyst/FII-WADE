@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP & MCP-B — Demo & Docs</title>
+    <link rel="stylesheet" href="https://unpkg.com/reveal.js@4.4.0/dist/reveal.css">
+    <link rel="stylesheet" href="https://unpkg.com/reveal.js@4.4.0/dist/theme/white.css" id="theme">
+</head>
+
+<body>
+    <div class="reveal">
+        <div class="slides">
+            <section>
+                <h1>MCP &amp; MCP-B</h1>
+                <p>A short introduction and demo</p>
+                <p><em>Presentation by Stoica Tedy &amp; Fruna Dan — 2025-11-22</em></p>
+            </section>
+
+            <section>
+                <h2>What is MCP?</h2>
+                <p>Model Context Protocol (MCP) is a minimal convention for exposing functions over HTTP so clients (UIs, assistants, editors) can call them as "tools".</p>
+                <ul>
+                    <li>Simple HTTP + JSON invocation model</li>
+                    <li>Functions are first-class tools with metadata</li>
+                    <li>MCP-B extends MCP for batching/binary payloads</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Why MCP?</h3>
+                <ul>
+                    <li>Expose single-purpose functions as network-accessible operations</li>
+                    <li>Enable editor/assistant integrations (e.g. VSCode Copilot)</li>
+                    <li>Keep endpoints simple, testable and composable</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Where MCP Is Used</h2>
+                <ul>
+                    <li>Editor integrations (code actions, content fetchers)</li>
+                    <li>Assistants and chatbots that call local tools</li>
+                    <li>Microservices exposing small domain-specific operations</li>
+                    <li>Tooling that needs a predictable, testable function surface</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Protocol: Basic MCP (HTTP/JSON)</h3>
+                <p>Common endpoints and payloads:</p>
+                <ul>
+                    <li><code>POST /invoke</code> — JSON body: <code>{"function":"name","args":[],"kwargs":{}}</code></li>
+                    <li><code>GET /metadata</code> — function signatures and descriptions (registry)</li>
+                    <li><code>GET /health</code> — readiness/health checks</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Request / Response Shape</h3>
+                <pre><code>Request:  {"function":"get_wade","args":[],"kwargs":{} }
+Response: {"result": ..., "error": null, "meta": {"duration_ms":123}}</code></pre>
+            </section>
+
+            <section>
+                <h3>MCP-B Notes</h3>
+                <ul>
+                    <li>Binary endpoints may use <code>Content-Type: application/octet-stream</code> or multipart</li>
+                    <li>Batch calls can include arrays of invocations in a single request</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Architecture: Components</h3>
+                <ul>
+                    <li><strong>Server</strong>: implements functions, metadata, health</li>
+                    <li><strong>Client</strong>: calls endpoints, handles retries/timeouts</li>
+                    <li><strong>Registry/Discovery</strong>: optional; tracks available functions & versions</li>
+                    <li><strong>Proxy / Auth</strong>: optional; TLS, authentication, rate-limiting</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Server Responsibilities</h3>
+                <ul>
+                    <li>Validate inputs and return well-formed JSON</li>
+                    <li>Provide metadata (function names, args, descriptions)</li>
+                    <li>Enforce timeouts, quotas, and authentication</li>
+                    <li>Log and expose health/metrics</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Client Responsibilities</h3>
+                <ul>
+                    <li>Serialize calls & handle network failures</li>
+                    <li>Respect timeouts and backoff on retries</li>
+                    <li>Optionally cache results and batch requests</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>How Tools Work</h3>
+                <p>A tool is an exported function the server exposes to callers. Typical tool fields:</p>
+                <ul>
+                    <li><strong>name</strong>: invocation key (e.g. <code>get_wade</code>)</li>
+                    <li><strong>description</strong>: human-friendly purpose</li>
+                    <li><strong>signature</strong>: args/kwargs/types</li>
+                    <li><strong>metadata</strong>: timeout, cacheability, auth requirements</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Example Tool Definition</h3>
+                <pre><code>{
+  "name": "searchFlights",
+  "description": "Search for available flights",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "origin": { "type": "string", "description": "Departure city" },
+      "destination": { "type": "string", "description": "Arrival city" },
+      "date": { "type": "string", "format": "date", "description": "Travel date" }
+    },
+    "required": ["origin", "destination", "date"]
+  }
+}
+</code></pre>
+                <p>Explanation: the tool exposes a typed input schema so clients and assistants validate and format calls correctly. The server can use the schema for runtime validation.</p>
+
+            </section>
+
+            <section>
+                <h3>How the Model Calls the Tool</h3>
+                <p>Model call example (pseudo-syntax):</p>
+                <pre><code>searchFlights(origin: "NYC", destination: "Barcelona", date: "2024-06-15")</code></pre>
+                <p>Under the hood the assistant issues <code>POST /invoke</code> with JSON matching the input schema.</p>
+            </section>
+
+            <section>
+                <h3>Under‑the‑hood: POST /invoke Request</h3>
+                <p>HTTP request the assistant sends:</p>
+                <pre><code>POST /invoke
+Content-Type: application/json
+
+{
+    "function": "searchFlights",
+    "args": [],
+    "kwargs": {
+        "origin": "NYC",
+        "destination": "Barcelona",
+        "date": "2024-06-15"
+    },
+    "meta": {
+        "caller": "vscode-copilot",
+        "request_id": "b2f9a7e2-3c4d-4a6b-9f2e-123456789abc",
+        "preferred_version": "1.2.0"
+    }
+}
+</code></pre>
+            </section>
+
+            <section>
+                <h3>Under‑the‑hood: POST /invoke Response</h3>
+                <p>Sample successful JSON response returned by the server:</p>
+                <pre><code>{
+    "result": {
+        "flights": [
+            {
+                "id": "FL-1001",
+                "airline": "ExampleAir",
+                "departure": "2024-06-15T08:00:00-04:00",
+                "arrival": "2024-06-15T20:00:00+02:00",
+                "price": 499.00,
+                "currency": "USD"
+            }
+        ]
+    },
+    "error": null,
+    "meta": {
+        "duration_ms": 312,
+        "source": "searchFlights",
+        "version": "1.2.0"
+    }
+}
+</code></pre>
+            </section>
+
+            <section>
+                <h3>Resources &amp; URI Examples</h3>
+                <p>Tools may accept or return resource URIs. Common schemes:</p>
+                <ul>
+                    <li><code>http://</code> or <code>https://</code> — network resources</li>
+                    <li><code>file:///path/to/file</code> — local filesystem references (local-only use)</li>
+                    <li><code>calendar://</code> — app-specific scheme for calendars</li>
+                    <li><code>mailto:alice@example.com</code> — email addresses</li>
+                    <li><code>s3://bucket/key</code> — cloud storage object</li>
+                </ul>
+                <p>Clients and servers should normalize and validate URIs and enforce access controls for local schemes.</p>
+            </section>
+
+            <section>
+                <h3>Client Examples</h3>
+                <pre><code># curl
+curl -X POST http://localhost:8765/invoke \
+  -H 'Content-Type: application/json' \
+  -d '{"function":"get_wade","args":[]}'
+
+# python requests
+import requests
+resp = requests.post('http://127.0.0.1:8765/invoke', json={"function":"get_wade","args":[]})
+print(resp.json())
+</code></pre>
+            </section>
+
+            <section>
+                <h3>Prompts &amp; IDE Integration</h3>
+                <p>Workflows for VSCode Copilot or assistants:</p>
+                <ul>
+                    <li>Call an MCP function to retrieve data, then use the assistant to process it</li>
+                    <li>Example prompt: <em>"Fetch the WADE page (local get_wade), extract all film titles, and return a JSON array."</em></li>
+                    <li>Keep prompts precise and reference the local MCP function names</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Prompt Definition Example</h3>
+                <pre><code>{
+  "name": "plan-vacation",
+  "title": "Plan a vacation",
+  "description": "Guide through vacation planning process",
+  "arguments": [
+    { "name": "destination", "type": "string", "required": true },
+    { "name": "duration", "type": "number", "description": "days" },
+    { "name": "budget", "type": "number", "required": false },
+    { "name": "interests", "type": "array", "items": { "type": "string" } }
+  ]
+}
+</code></pre>
+                <p>This prompt metadata can be provided to an assistant so it knows what structured arguments to request or validate from the user.</p>
+            </section>
+
+            <section>
+                <h3>How Tools Work</h3>
+                <p>A tool is an exported function the server exposes to callers. Typical tool fields:</p>
+                <ul>
+                    <li><strong>name</strong>: invocation key (e.g. <code>get_wade</code>)</li>
+                    <li><strong>description</strong>: human-friendly purpose</li>
+                    <li><strong>signature</strong>: args/kwargs/types</li>
+                    <li><strong>metadata</strong>: timeout, cacheability, auth requirements</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Tool Metadata Example</h3>
+                <pre><code>{
+  "name": "get_wade",
+  "description": "Fetch the WADE course HTML page and return as string",
+  "args": [],
+  "returns": "string (HTML)",
+  "timeout_ms": 20000,
+  "cacheable": true,
+  "auth_required": false
+}
+</code></pre>
+            </section>
+
+            <section>
+                <h3>How an AI Model Uses a Tool (example)</h3>
+                <p>Sequence:</p>
+                <ol>
+                    <li>The assistant receives a user request (e.g. "list film titles from WADE").</li>
+                    <li>The assistant consults available tools (local metadata) and decides to call <code>get_wade</code>.</li>
+                    <li>The assistant issues <code>POST /invoke</code> with the tool name; server returns HTML.</li>
+                    <li>The assistant processes the HTML and returns extracted structured results to the user.</li>
+                </ol>
+                <p>See next slide for a multi-tool example (travel planner).</p>
+            </section>
+
+            <section>
+                <h3>Multi‑Tool Example: Travel Planner</h3>
+                <pre><code>Consider these servers:
+Travel Server - handles flights/hotels/itineraries
+Weather Server - provides forecasts
+Calendar/Email Server - manages schedules and notifications
+
+AI flow:
+1) call Travel Server -> searchFlights(...)
+2) call Weather Server -> getForecast(location, dates)
+3) call Calendar Server -> createEvent(...) and send email
+</code></pre>
+                <p>The assistant aggregates results from multiple tools into a single response for the user (or orchestrates calls in sequence).</p>
+            </section>
+
+            <section>
+                <h3>How Metadata Is Embedded (hidden in prompt)</h3>
+                <p>Tool metadata is included in the assistant's system/context prompt (not shown to the end user). Example pseudo‑prompt:</p>
+                <pre><code>System: You are given a set of tool descriptors (name, signature, description).
+When you call a tool, use the exact name and pass JSON arguments.
+
+Tool: get_wade -> returns HTML string
+
+User: "Extract film titles from WADE"
+Assistant: (calls get_wade)
+</code></pre>
+                <p>The assistant hides metadata from the user but uses it to decide and format tool calls.</p>
+            </section>
+
+            <section>
+                <h3>End‑to‑End: How the Demo Works</h3>
+                <ol>
+                    <li>Client (IDE/assistant) issues <code>POST /invoke</code> with JSON <code>{"function":"get_wade"}</code>.</li>
+                    <li>Server maps name to implementation and enforces metadata (timeout, auth).</li>
+                    <li>Server executes function (demo: HTTP fetch to WADE URL) and returns JSON.</li>
+                    <li>Assistant receives result and continues processing (parsing, summarizing, extracting) locally.</li>
+                </ol>
+            </section>
+
+            <section>
+                <h3>Request / Response Shape (detailed)</h3>
+                <pre><code>Request:  {"function":"get_wade","args":[],"kwargs":{} }
+Response: {"result": "<html>...</html>", "error": null, "meta": {"duration_ms":123, "source":"get_wade"}}</code></pre>
+            </section>
+
+            <section>
+                <h3>Server Implementation Notes</h3>
+                <ul>
+                    <li>Use an async/multi-threaded server for concurrency (uvicorn/gunicorn in production).</li>
+                    <li>Validate inputs, enforce per-call timeouts, and run untrusted code with care.</li>
+                    <li>Provide <code>/metadata</code> and <code>/health</code> endpoints; emit metrics.</li>
+                    <li>Do not expose open-fetch endpoints publicly without auth — `get_wade` can act as an open proxy.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Client Responsibilities (detailed)</h3>
+                <ul>
+                    <li>Serialize calls, set timeouts, and handle transient errors with retries/backoff.</li>
+                    <li>Respect <code>timeout_ms</code> and <code>cacheable</code> metadata when present.</li>
+                    <li>Sanitize and post-process tool outputs before rendering to users or UIs.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Versioning & Compatibility</h3>
+                <p>Versioning in MCP servers helps clients and assistants choose compatible function signatures and behavior.</p>
+                <ul>
+                    <li>Expose server version and per-function version in <code>/metadata</code>.</li>
+                    <li>Support semantic versioning for breaking/non-breaking changes (major.minor.patch).</li>
+                    <li>Clients can request a specific function version or fall back to a compatible one.</li>
+                </ul>
+                <p>Example metadata snippet:</p>
+                <pre><code>{"functions":[{"name":"searchFlights","version":"1.2.0","schema":{...}}], "server_version":"0.3.1"}</code></pre>
+            </section>
+
+
+            <section>
+                <h3>MCP SDKs &amp; Server Examples</h3>
+                <p>Server-side examples showing how an MCP server can expose <code>/invoke</code> and map function names to implementations.</p>
+            </section>
+
+            <section>
+                <h4>Python (FastMCP example)</h4>
+                <pre><code>from mcp.server.fastmcp import FastMCP
+        mcp = FastMCP("Demo", json_response=True)
+        @mcp.tool()
+        def add(a: int, b: int) -> int:
+            """Add two numbers"""
+            return a + b
+        @mcp.resource("greeting://{name}")
+        def get_greeting(name: str) -> str:
+            """Get a personalized greeting"""
+            return f"Hello, {name}!"
+        @mcp.prompt()
+        def greet_user(name: str, style: str = "friendly") -> str:
+            """Generate a greeting prompt"""
+            styles = {"friendly":"Please write a warm, friendly greeting","formal":"Please write a formal, professional greeting","casual":"Please write a casual, relaxed greeting"}
+            return f"{styles.get(style, styles['friendly'])} for someone named {name}."
+        if __name__ == "__main__":
+            mcp.run(transport="streamable-http")
+        </code></pre>
+            </section>
+
+            <section>
+                <h4>TypeScript (MCP server)</h4>
+                <pre><code>import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
+import express from 'express'
+import * as z from 'zod/v4'
+
+const server = new McpServer({ name: 'demo-server', version: '1.0.0' })
+
+server.registerTool('add', { title: 'Addition Tool', description: 'Add two numbers', inputSchema: { a: z.number(), b: z.number() }, outputSchema: { result: z.number() } }, async ({ a, b }) => { const output = { result: a + b }; return { content: [{ type: 'text', text: JSON.stringify(output) }], structuredContent: output } })
+
+server.registerResource('greeting', new ResourceTemplate('greeting://{name}', { list: undefined }), { title: 'Greeting Resource', description: 'Dynamic greeting generator' }, async (uri, { name }) => ({ contents: [{ uri: uri.href, text: `Hello, ${name}!` }] }))
+
+const app = express(); app.use(express.json())
+app.post('/mcp', async (req, res) => { const transport = new StreamableHTTPServerTransport({ enableJsonResponse: true }); res.on('close', () => transport.close()); await server.connect(transport); await transport.handleRequest(req, res, req.body) })
+const port = parseInt(process.env.PORT || '3000'); app.listen(port, () => console.log(`Demo MCP Server running on http://localhost:${port}/mcp`))
+</code></pre>
+            </section>
+
+            <section>
+                <h4>Go (mcp server example)</h4>
+                <pre><code>package main
+
+import (
+    "context"
+    "log"
+
+    "github.com/modelcontextprotocol/go-sdk/mcp"
+)
+
+type Input struct { Name string `json:"name" jsonschema:"the name of the person to greet"` }
+type Output struct { Greeting string `json:"greeting" jsonschema:"the greeting to tell to the user"` }
+
+func SayHi(ctx context.Context, req *mcp.CallToolRequest, input Input) (*mcp.CallToolResult, Output, error) {
+    return nil, Output{Greeting: "Hi " + input.Name}, nil
+}
+
+func main() {
+    server := mcp.NewServer(&mcp.Implementation{Name: "greeter", Version: "v1.0.0"}, nil)
+    mcp.AddTool(server, &mcp.Tool{Name: "greet", Description: "say hi"}, SayHi)
+    if err := server.Run(context.Background(), &mcp.StdioTransport{}); err != nil { log.Fatal(err) }
+}
+</code></pre>
+            </section>
+
+            <section>
+                <h3>Files & Demo</h3>
+                <ul>
+                    <li><code>presentation/mcp_server.py</code> — demo server (see demo slides)</li>
+                    <li><code>presentation/README.md</code> — run instructions</li>
+                </ul>
+            </section>
+
+            <section>
+                <h2>Demo: Running the Server (end)</h2>
+                <pre><code>python3 presentation/mcp_server.py
+# then call:
+curl -s -X POST http://localhost:8765/invoke \
+  -H 'Content-Type: application/json' \
+  -d '{"function":"get_wade","args":[]}'
+</code></pre>
+            </section>
+
+            <section>
+                <h3>Demo: Implementation (excerpt)</h3>
+                <pre><code>def get_wade():
+    # fetches WADE page and returns HTML
+</code></pre>
+                <p>Full server at <code>presentation/mcp_server.py</code></p>
+            </section>
+
+            <section>
+                <h3>Wrap-up</h3>
+                <ul>
+                    <li>MCP exposes tools as functions; MCP-B handles batches/binary.</li>
+                    <li>Tool metadata guides assistants and clients; metadata can be embedded in the assistant's context.</li>
+                    <li>Keep demos local or protected; add auth for public use.</li>
+                </ul>
+                <p>Questions?</p>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://unpkg.com/reveal.js@4.4.0/dist/reveal.js"></script>
+    <script>
+        const deck = new Reveal();
+        deck.initialize({
+            hash: true,
+            slideNumber: true,
+            width: 1100
+        });
+    </script>
+</body>
+
+</html>
