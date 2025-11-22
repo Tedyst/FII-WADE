@@ -48,59 +48,6 @@
             </section>
 
             <section>
-                <h3>Protocol: Basic MCP (HTTP/JSON)</h3>
-                <p>Common endpoints and payloads:</p>
-                <ul>
-                    <li><code>POST /invoke</code> — JSON body: <code>{"function":"name","args":[],"kwargs":{}}</code></li>
-                    <li><code>GET /metadata</code> — function signatures and descriptions (registry)</li>
-                    <li><code>GET /health</code> — readiness/health checks</li>
-                </ul>
-            </section>
-
-            <section>
-                <h3>Request / Response Shape</h3>
-                <pre><code>Request:  {"function":"get_wade","args":[],"kwargs":{} }
-Response: {"result": ..., "error": null, "meta": {"duration_ms":123}}</code></pre>
-            </section>
-
-            <section>
-                <h3>MCP-B Notes</h3>
-                <ul>
-                    <li>Binary endpoints may use <code>Content-Type: application/octet-stream</code> or multipart</li>
-                    <li>Batch calls can include arrays of invocations in a single request</li>
-                </ul>
-            </section>
-
-            <section>
-                <h3>Architecture: Components</h3>
-                <ul>
-                    <li><strong>Server</strong>: implements functions, metadata, health</li>
-                    <li><strong>Client</strong>: calls endpoints, handles retries/timeouts</li>
-                    <li><strong>Registry/Discovery</strong>: optional; tracks available functions & versions</li>
-                    <li><strong>Proxy / Auth</strong>: optional; TLS, authentication, rate-limiting</li>
-                </ul>
-            </section>
-
-            <section>
-                <h3>Server Responsibilities</h3>
-                <ul>
-                    <li>Validate inputs and return well-formed JSON</li>
-                    <li>Provide metadata (function names, args, descriptions)</li>
-                    <li>Enforce timeouts, quotas, and authentication</li>
-                    <li>Log and expose health/metrics</li>
-                </ul>
-            </section>
-
-            <section>
-                <h3>Client Responsibilities</h3>
-                <ul>
-                    <li>Serialize calls & handle network failures</li>
-                    <li>Respect timeouts and backoff on retries</li>
-                    <li>Optionally cache results and batch requests</li>
-                </ul>
-            </section>
-
-            <section>
                 <h3>How Tools Work</h3>
                 <p>A tool is an exported function the server exposes to callers. Typical tool fields:</p>
                 <ul>
@@ -127,15 +74,81 @@ Response: {"result": ..., "error": null, "meta": {"duration_ms":123}}</code></pr
   }
 }
 </code></pre>
-                <p>Explanation: the tool exposes a typed input schema so clients and assistants validate and format calls correctly. The server can use the schema for runtime validation.</p>
-
+                <p>The server can use the schema for runtime validation and UI generation.</p>
             </section>
 
             <section>
-                <h3>How the Model Calls the Tool</h3>
-                <p>Model call example (pseudo-syntax):</p>
-                <pre><code>searchFlights(origin: "NYC", destination: "Barcelona", date: "2024-06-15")</code></pre>
-                <p>Under the hood the assistant issues <code>POST /invoke</code> with JSON matching the input schema.</p>
+                <h3>Tool Metadata Example</h3>
+                <pre><code>{
+  "name": "get_wade",
+  "description": "Fetch the WADE course HTML page and return as string",
+  "args": [],
+  "returns": "string (HTML)",
+  "timeout_ms": 20000,
+  "cacheable": true,
+  "auth_required": false
+}
+</code></pre>
+            </section>
+
+            <section>
+                <h3>Prompt Definition Example</h3>
+                <pre><code>{
+  "name": "plan-vacation",
+  "title": "Plan a vacation",
+  "description": "Guide through vacation planning process",
+  "arguments": [
+    { "name": "destination", "type": "string", "required": true },
+    { "name": "duration", "type": "number", "description": "days" },
+    { "name": "budget", "type": "number", "required": false },
+    { "name": "interests", "type": "array", "items": { "type": "string" } }
+  ]
+}
+</code></pre>
+                <p>This metadata helps assistants request structured inputs from users.</p>
+            </section>
+
+            <section>
+                <h3>Prompts &amp; IDE Integration</h3>
+                <p>Workflows for VSCode Copilot or assistants:</p>
+                <ul>
+                    <li>Call an MCP function to retrieve data, then use the assistant to process it</li>
+                    <li>Example prompt: <em>"Fetch the WADE page (local get_wade), extract all film titles, and return a JSON array."</em></li>
+                    <li>Keep prompts precise and reference the local MCP function names</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Prompts vs Tools</h3>
+                <ul>
+                    <li><strong>Tool</strong>: an executable API exposed by the server. Deterministic, typed, and returns structured data or performs side effects.</li>
+                    <li><strong>Prompt</strong>: an instruction template passed to a language model to generate text or guide behavior.</li>
+                </ul>
+            </section>
+
+            <section>
+                <h3>Multi‑Tool Example: Travel Planner</h3>
+                <pre><code>Consider these servers:
+Travel Server - handles flights/hotels/itineraries
+Weather Server - provides forecasts
+Calendar/Email Server - manages schedules and notifications
+
+AI flow:
+1) call Travel Server -> searchFlights(...)
+2) call Weather Server -> getForecast(location, dates)
+3) call Calendar Server -> createEvent(...) and send email
+</code></pre>
+                <p>The assistant aggregates results from multiple tools into a single response for the user.</p>
+            </section>
+
+            <section>
+                <h3>Protocol: Basic MCP (HTTP/JSON)</h3>
+                <p>Common endpoints and payloads:</p>
+                <ul>
+                    <li><code>POST /invoke</code> — JSON body: <code>{"function":"name","args":[],"kwargs":{}}</code></li>
+                    <li><code>GET /metadata</code> — function signatures and descriptions (registry)</li>
+                    <li><code>GET /health</code> — readiness/health checks</li>
+                </ul>
             </section>
 
             <section>
@@ -188,157 +201,10 @@ Content-Type: application/json
             </section>
 
             <section>
-                <h3>Resources &amp; URI Examples</h3>
-                <p>Tools may accept or return resource URIs. Common schemes:</p>
+                <h3>MCP-B Notes</h3>
                 <ul>
-                    <li><code>http://</code> or <code>https://</code> — network resources</li>
-                    <li><code>file:///path/to/file</code> — local filesystem references (local-only use)</li>
-                    <li><code>calendar://</code> — app-specific scheme for calendars</li>
-                    <li><code>mailto:alice@example.com</code> — email addresses</li>
-                    <li><code>s3://bucket/key</code> — cloud storage object</li>
-                </ul>
-                <p>Clients and servers should normalize and validate URIs and enforce access controls for local schemes.</p>
-            </section>
-
-            <section>
-                <h3>Client Examples</h3>
-                <pre><code># curl
-curl -X POST http://localhost:8765/invoke \
-  -H 'Content-Type: application/json' \
-  -d '{"function":"get_wade","args":[]}'
-
-# python requests
-import requests
-resp = requests.post('http://127.0.0.1:8765/invoke', json={"function":"get_wade","args":[]})
-print(resp.json())
-</code></pre>
-            </section>
-
-            <section>
-                <h3>Prompts &amp; IDE Integration</h3>
-                <p>Workflows for VSCode Copilot or assistants:</p>
-                <ul>
-                    <li>Call an MCP function to retrieve data, then use the assistant to process it</li>
-                    <li>Example prompt: <em>"Fetch the WADE page (local get_wade), extract all film titles, and return a JSON array."</em></li>
-                    <li>Keep prompts precise and reference the local MCP function names</li>
-                </ul>
-            </section>
-
-            <section>
-                <h3>Prompt Definition Example</h3>
-                <pre><code>{
-  "name": "plan-vacation",
-  "title": "Plan a vacation",
-  "description": "Guide through vacation planning process",
-  "arguments": [
-    { "name": "destination", "type": "string", "required": true },
-    { "name": "duration", "type": "number", "description": "days" },
-    { "name": "budget", "type": "number", "required": false },
-    { "name": "interests", "type": "array", "items": { "type": "string" } }
-  ]
-}
-</code></pre>
-                <p>This prompt metadata can be provided to an assistant so it knows what structured arguments to request or validate from the user.</p>
-            </section>
-
-            <section>
-                <h3>How Tools Work</h3>
-                <p>A tool is an exported function the server exposes to callers. Typical tool fields:</p>
-                <ul>
-                    <li><strong>name</strong>: invocation key (e.g. <code>get_wade</code>)</li>
-                    <li><strong>description</strong>: human-friendly purpose</li>
-                    <li><strong>signature</strong>: args/kwargs/types</li>
-                    <li><strong>metadata</strong>: timeout, cacheability, auth requirements</li>
-                </ul>
-            </section>
-
-            <section>
-                <h3>Tool Metadata Example</h3>
-                <pre><code>{
-  "name": "get_wade",
-  "description": "Fetch the WADE course HTML page and return as string",
-  "args": [],
-  "returns": "string (HTML)",
-  "timeout_ms": 20000,
-  "cacheable": true,
-  "auth_required": false
-}
-</code></pre>
-            </section>
-
-            <section>
-                <h3>How an AI Model Uses a Tool (example)</h3>
-                <p>Sequence:</p>
-                <ol>
-                    <li>The assistant receives a user request (e.g. "list film titles from WADE").</li>
-                    <li>The assistant consults available tools (local metadata) and decides to call <code>get_wade</code>.</li>
-                    <li>The assistant issues <code>POST /invoke</code> with the tool name; server returns HTML.</li>
-                    <li>The assistant processes the HTML and returns extracted structured results to the user.</li>
-                </ol>
-                <p>See next slide for a multi-tool example (travel planner).</p>
-            </section>
-
-            <section>
-                <h3>Multi‑Tool Example: Travel Planner</h3>
-                <pre><code>Consider these servers:
-Travel Server - handles flights/hotels/itineraries
-Weather Server - provides forecasts
-Calendar/Email Server - manages schedules and notifications
-
-AI flow:
-1) call Travel Server -> searchFlights(...)
-2) call Weather Server -> getForecast(location, dates)
-3) call Calendar Server -> createEvent(...) and send email
-</code></pre>
-                <p>The assistant aggregates results from multiple tools into a single response for the user (or orchestrates calls in sequence).</p>
-            </section>
-
-            <section>
-                <h3>How Metadata Is Embedded (hidden in prompt)</h3>
-                <p>Tool metadata is included in the assistant's system/context prompt (not shown to the end user). Example pseudo‑prompt:</p>
-                <pre><code>System: You are given a set of tool descriptors (name, signature, description).
-When you call a tool, use the exact name and pass JSON arguments.
-
-Tool: get_wade -> returns HTML string
-
-User: "Extract film titles from WADE"
-Assistant: (calls get_wade)
-</code></pre>
-                <p>The assistant hides metadata from the user but uses it to decide and format tool calls.</p>
-            </section>
-
-            <section>
-                <h3>End‑to‑End: How the Demo Works</h3>
-                <ol>
-                    <li>Client (IDE/assistant) issues <code>POST /invoke</code> with JSON <code>{"function":"get_wade"}</code>.</li>
-                    <li>Server maps name to implementation and enforces metadata (timeout, auth).</li>
-                    <li>Server executes function (demo: HTTP fetch to WADE URL) and returns JSON.</li>
-                    <li>Assistant receives result and continues processing (parsing, summarizing, extracting) locally.</li>
-                </ol>
-            </section>
-
-            <section>
-                <h3>Request / Response Shape (detailed)</h3>
-                <pre><code>Request:  {"function":"get_wade","args":[],"kwargs":{} }
-Response: {"result": "<html>...</html>", "error": null, "meta": {"duration_ms":123, "source":"get_wade"}}</code></pre>
-            </section>
-
-            <section>
-                <h3>Server Implementation Notes</h3>
-                <ul>
-                    <li>Use an async/multi-threaded server for concurrency (uvicorn/gunicorn in production).</li>
-                    <li>Validate inputs, enforce per-call timeouts, and run untrusted code with care.</li>
-                    <li>Provide <code>/metadata</code> and <code>/health</code> endpoints; emit metrics.</li>
-                    <li>Do not expose open-fetch endpoints publicly without auth — `get_wade` can act as an open proxy.</li>
-                </ul>
-            </section>
-
-            <section>
-                <h3>Client Responsibilities (detailed)</h3>
-                <ul>
-                    <li>Serialize calls, set timeouts, and handle transient errors with retries/backoff.</li>
-                    <li>Respect <code>timeout_ms</code> and <code>cacheable</code> metadata when present.</li>
-                    <li>Sanitize and post-process tool outputs before rendering to users or UIs.</li>
+                    <li>Binary endpoints may use <code>Content-Type: application/octet-stream</code> or multipart</li>
+                    <li>Batch calls can include arrays of invocations in a single request</li>
                 </ul>
             </section>
 
@@ -350,10 +216,19 @@ Response: {"result": "<html>...</html>", "error": null, "meta": {"duration_ms":1
                     <li>Support semantic versioning for breaking/non-breaking changes (major.minor.patch).</li>
                     <li>Clients can request a specific function version or fall back to a compatible one.</li>
                 </ul>
-                <p>Example metadata snippet:</p>
-                <pre><code>{"functions":[{"name":"searchFlights","version":"1.2.0","schema":{...}}], "server_version":"0.3.1"}</code></pre>
             </section>
 
+            <section>
+                <h3>Resources &amp; URI Examples</h3>
+                <p>Tools may accept or return resource URIs. Common schemes:</p>
+                <ul>
+                    <li><code>http://</code> or <code>https://</code> — network resources</li>
+                    <li><code>file:///path/to/file</code> — local filesystem references (local-only use)</li>
+                    <li><code>calendar://</code> — app-specific scheme for calendars</li>
+                    <li><code>mailto:alice@example.com</code> — email addresses</li>
+                    <li><code>s3://bucket/key</code> — cloud storage object</li>
+                </ul>
+            </section>
 
             <section>
                 <h3>MCP SDKs &amp; Server Examples</h3>
@@ -363,23 +238,23 @@ Response: {"result": "<html>...</html>", "error": null, "meta": {"duration_ms":1
             <section>
                 <h4>Python (FastMCP example)</h4>
                 <pre><code>from mcp.server.fastmcp import FastMCP
-        mcp = FastMCP("Demo", json_response=True)
-        @mcp.tool()
-        def add(a: int, b: int) -> int:
-            """Add two numbers"""
-            return a + b
-        @mcp.resource("greeting://{name}")
-        def get_greeting(name: str) -> str:
-            """Get a personalized greeting"""
-            return f"Hello, {name}!"
-        @mcp.prompt()
-        def greet_user(name: str, style: str = "friendly") -> str:
-            """Generate a greeting prompt"""
-            styles = {"friendly":"Please write a warm, friendly greeting","formal":"Please write a formal, professional greeting","casual":"Please write a casual, relaxed greeting"}
-            return f"{styles.get(style, styles['friendly'])} for someone named {name}."
-        if __name__ == "__main__":
-            mcp.run(transport="streamable-http")
-        </code></pre>
+mcp = FastMCP("Demo", json_response=True)
+@mcp.tool()
+def add(a: int, b: int) -> int:
+    """Add two numbers"""
+    return a + b
+@mcp.resource("greeting://{name}")
+def get_greeting(name: str) -> str:
+    """Get a personalized greeting"""
+    return f"Hello, {name}!"
+@mcp.prompt()
+def greet_user(name: str, style: str = "friendly") -> str:
+    """Generate a greeting prompt"""
+    styles = {"friendly":"Please write a warm, friendly greeting","formal":"Please write a formal, professional greeting","casual":"Please write a casual, relaxed greeting"}
+    return f"{styles.get(style, styles['friendly'])} for someone named {name}."
+if __name__ == "__main__":
+    mcp.run(transport="streamable-http")
+</code></pre>
             </section>
 
             <section>
