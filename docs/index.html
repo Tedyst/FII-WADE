@@ -461,28 +461,6 @@ registerTool({
                                 </code></pre>
             </section>
 
-            <!-- Best practices summary -->
-            <section>
-                <h2>Best practices (summary)</h2>
-                <ul>
-                    <li>Provide JSON Schemas for tools and validate server-side.</li>
-                    <li>Version tools and use semantic versioning for breaking changes.</li>
-                    <li>Return structured content + short human text for clarity.</li>
-                    <li>Minimize surface area for sensitive actions; require user approval.</li>
-                    <li>Keep examples and a README for integrators.</li>
-                </ul>
-            </section>
-
-            <!-- Use cases -->
-            <section>
-                <h2>Use cases &amp; scenarios</h2>
-                <ul>
-                    <li>Personal assistants: calendar, email, file management (with approval).</li>
-                    <li>Commerce: add-to-cart, checkout helpers via WebMCP.</li>
-                    <li>Automation: media processing, batch tasks, streaming large artifacts.</li>
-                </ul>
-            </section>
-
             <!-- Demo slide (KEEP) -->
             <section>
                 <h2>Demo</h2>
@@ -493,17 +471,6 @@ curl -s -X POST http://localhost:8765/invoke \
     -H 'Content-Type: application/json' \
     -d '{"function":"get_wade","args":[]}'
                                 </code></pre>
-            </section>
-
-            <!-- Closing & next steps -->
-            <section>
-                <h2>Next steps &amp; resources</h2>
-                <ul>
-                    <li>Read the MCP spec and SDK docs (modelcontextprotocol.io/docs)</li>
-                    <li>Try WebMCP quickstart and the MCP‑B extension (docs.mcp-b.ai)</li>
-                    <li>Implement a small server and client (weather quickstart example)</li>
-                </ul>
-                <p>Questions?</p>
             </section>
         </div>
     </div>

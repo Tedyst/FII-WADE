@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>WebMCP Demo</title>
+    <style>
+        body {
+            font-family: system-ui, Segoe UI, Roboto, Arial;
+            margin: 24px
+        }
+
+        button,
+        input {
+            margin: 6px 0;
+            padding: 8px
+        }
+
+        pre {
+            background: #f6f8fa;
+            padding: 12px;
+            border-radius: 6px
+        }
+    </style>
+</head>
+
+<body>
+    <h1>WebMCP Demo</h1>
+    <p>Three simple tools registered in-page:</p>
+    <ul>
+        <li><strong>random</strong> — returns a random number in [0,1).</li>
+        <li><strong>addText</strong> — stores provided text in <code>localStorage</code>.</li>
+        <li><strong>getTexts</strong> — returns the stored list of texts.</li>
+    </ul>
+
+    <section>
+        <h3>Invoke tools</h3>
+        <div>
+            <button id="call-random">Call <strong>random</strong></button>
+            <pre id="random-out">—</pre>
+        </div>
+
+        <div>
+            <input id="text-input" placeholder="Text to store" style="width:60%">
+            <button id="call-add">Call <strong>addText</strong></button>
+        </div>
+        <div>
+            <button id="call-get">Call <strong>getTexts</strong></button>
+            <pre id="get-out">—</pre>
+        </div>
+    </section>
+
+    <script>
+        // Minimal in-page WebMCP-like registry for demo purposes.
+        (function () {
+            const registry = {};
+
+            // Expose a small modelContext API on navigator.modelContext for demo hosts
+            if (!navigator.modelContext) navigator.modelContext = {};
+
+            navigator.modelContext.registerTool = function ({ name, description, handler }) {
+                if (!name || typeof handler !== 'function') throw new Error('invalid tool');
+                registry[name] = { description, handler };
+                console.info('tool registered:', name);
+            };
+
+            // Simple invoker used by the demo UI (simulates a host calling a tool)
+            navigator.modelContext.invokeTool = async function (name, args) {
+                const t = registry[name];
+                if (!t) throw new Error('tool-not-found:' + name);
+                // handler may be async
+                return await t.handler({}, ...(Array.isArray(args) ? args : []));
+            };
+
+            // Implement the three demo tools
+            navigator.modelContext.registerTool({
+                name: 'random',
+                description: 'Return random number',
+                handler: async () => ({ value: Math.random() })
+            });
+
+            navigator.modelContext.registerTool({
+                name: 'addText',
+                description: 'Append text to localStorage list',
+                handler: async (_, text) => {
+                    const key = 'webmcp_texts';
+                    const raw = localStorage.getItem(key);
+                    const arr = raw ? JSON.parse(raw) : [];
+                    arr.push(String(text));
+                    localStorage.setItem(key, JSON.stringify(arr));
+                    return { ok: true, length: arr.length };
+                }
+            });
+
+            navigator.modelContext.registerTool({
+                name: 'getTexts',
+                description: 'Get stored texts',
+                handler: async () => {
+                    const raw = localStorage.getItem('webmcp_texts');
+                    return { texts: raw ? JSON.parse(raw) : [] };
+                }
+            });
+
+            // Wire up UI
+            document.getElementById('call-random').addEventListener('click', async () => {
+                try {
+                    const r = await navigator.modelContext.invokeTool('random');
+                    document.getElementById('random-out').textContent = JSON.stringify(r, null, 2);
+                } catch (e) { document.getElementById('random-out').textContent = String(e); }
+            });
+
+            document.getElementById('call-add').addEventListener('click', async () => {
+                const txt = document.getElementById('text-input').value;
+                try {
+                    const r = await navigator.modelContext.invokeTool('addText', [txt]);
+                    document.getElementById('get-out').textContent = 'Added — length: ' + r.length;
+                    document.getElementById('text-input').value = '';
+                } catch (e) { document.getElementById('get-out').textContent = String(e); }
+            });
+
+            document.getElementById('call-get').addEventListener('click', async () => {
+                try {
+                    const r = await navigator.modelContext.invokeTool('getTexts');
+                    document.getElementById('get-out').textContent = JSON.stringify(r, null, 2);
+                } catch (e) { document.getElementById('get-out').textContent = String(e); }
+            });
+        })();
+    </script>
+</body>
+
+</html>
