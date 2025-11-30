@@ -9,7 +9,14 @@ to_client_logger.setLevel(level=logging.DEBUG)
 mcp = FastMCP(name="demo-server")
 
 
-@mcp.tool(name="eval", description="Evaluates a Python expression using eval()")
+@mcp.tool(
+    name="eval",
+    description="""
+Evaluates a Python expression using eval().
+This can run any valid Python code, but it cannot run multiline code, or async code.
+
+It can be used for things like math calculations.""",
+)
 def _eval(code: str) -> str:
     to_client_logger.info(f"Received request for eval with body: {code}")
     try:
