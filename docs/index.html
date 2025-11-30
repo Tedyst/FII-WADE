@@ -44,6 +44,11 @@
                 </ul>
             </section>
 
+            <section>
+                <h2>MCP Diagram</h2>
+                <p><img src="assets/mcp-simple-diagram.avif" alt="Simple MCP diagram" style="max-width:100%;height:auto"></p>
+            </section>
+
             <!-- Why does MCP matter -->
             <section>
                 <h2>Why MCP matters</h2>
@@ -64,6 +69,24 @@
                 </ul>
             </section>
 
+            <!-- Diagram -->
+            <section>
+                <h2>Architecture Diagram</h2>
+                <p><img src="assets/architecture-diagram.png" alt="MCP architecture diagram" style="max-width:100%;height:auto"></p>
+            </section>
+
+            <!-- Data layer (detailed) -->
+            <section>
+                <h2>Data Layer</h2>
+                <p>The Data layer defines the protocol primitives and JSON-RPC surface:</p>
+                <ul>
+                    <li><strong>Lifecycle</strong>: initialize / shutdown and capability negotiation.</li>
+                    <li><strong>Discovery</strong>: list methods for tools/resources/prompts and schema-driven metadata.</li>
+                    <li><strong>Execution</strong>: call/read/task APIs that return structured content and typed outputs.</li>
+                    <li><strong>Schema-first</strong>: inputs/outputs should be expressed as JSON Schema for validation and safe execution.</li>
+                </ul>
+            </section>
+
             <!-- Participants -->
             <section>
                 <h2>Key participants</h2>
@@ -75,13 +98,137 @@
             </section>
 
             <!-- Core primitives -->
+            <!-- Server Primitives -->
             <section>
-                <h2>Core primitives</h2>
+                <h2>Server Primitives</h2>
+                <p>Server-facing primitives exposed over the Data layer (concise):</p>
                 <ul>
-                    <li><strong>Tools</strong>: executable functions (discover/list/call).</li>
-                    <li><strong>Resources</strong>: addressable context data (list/read).</li>
-                    <li><strong>Prompts</strong>: reusable templates for model interactions.</li>
+                    <li><strong>Tools</strong>: executable functions. Provide <code>name</code>, <code>description</code>, <code>inputSchema</code>, <code>outputSchema</code> and a <code>handler</code>. Handlers return typed structured outputs and a <code>content</code> array for host rendering.</li>
+                    <li><strong>Resources</strong>: addressable context (id, mediaType) with <code>read()</code> semantics; support streaming, ranges and metadata for efficient transfer.</li>
+                    <li><strong>Prompts</strong>: reusable templates with slots and recommended sampling/hyperparameters</li>
                 </ul>
+                <!-- example removed here and added in following slide -->
+            </section>
+
+            <!-- Server primitive example: Tool -->
+            <section>
+                <h2>Server primitive — Tool</h2>
+                <p><strong>searchFlights</strong> — inputSchema and response:</p>
+                <pre><code>{
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "origin": { "type": "string" },
+            "destination": { "type": "string" },
+            "date": { "type": "string", "format": "date" }
+        },
+        "required": ["origin", "destination", "date"]
+    },
+    "response": {
+        "flights": [{ "id": "str", "price": "number", "depart": "string", "arrive": "string", "airline": "string" }],
+        "total": "number"
+    }
+}</code></pre>
+            </section>
+
+            <!-- Server primitive example: Resource -->
+            <section>
+                <h2>Server primitive — Resource</h2>
+                <p><strong>calendar://events/2024</strong> — example descriptor:</p>
+                <pre><code>{
+  "uri": "calendar://events/2024",
+  "mimeType": "application/json",
+  "description": "User calendar events for 2024",
+  "supports": ["read","subscribe"]
+}</code></pre>
+            </section>
+
+            <!-- Server primitive example: Prompt -->
+            <section>
+                <h2>Server primitive — Prompt</h2>
+                <p><strong>plan-vacation</strong> — example prompt descriptor:</p>
+                <pre><code>{
+    "name": "plan-vacation",
+    "title": "Plan a vacation",
+    "description": "Guides a user through planning a vacation",
+    "arguments": [
+        { "name": "destination", "type": "string", "required": true },
+        { "name": "duration", "type": "number" },
+        { "name": "budget", "type": "number" }
+    ]
+}</code></pre>
+                <p>Prompts run structured workflows: user chooses prompt, supplies arguments, client orchestrates tools/resources.</p>
+            </section>
+
+            <!-- Client primitives (moved) -->
+            <section>
+                <h2>Client primitives</h2>
+                <ul>
+                    <li><strong>Sampling</strong>: clients may supply generation settings (temperature, top_p, n) when invoking prompts/tools to control model behavior.</li>
+                    <li><strong>Elicitation</strong>: clients orchestrate multi-turn prompting, few-shot contexts, and instrument prompts (examples, anchors) to improve reliability.</li>
+                    <li><strong>Logging</strong>: clients should record requests, approvals/denials, decisions and structured outputs for audit, debugging and replay.</li>
+                </ul>
+            </section>
+
+            <!-- Client examples: Elicitation -->
+            <section>
+                <h2>Client example — Elicitation</h2>
+                <p>Server requests input from user (example):</p>
+                <pre><code>{
+    "jsonrpc": "2.0",
+    "method": "elicitation/requestInput",
+    "params": {
+        "message": "Please confirm your Barcelona vacation booking details:",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "confirmBooking": { "type": "boolean", "description": "Confirm the booking (Flights + Hotel = $3,000)" },
+                "seatPreference": { "type": "string", "enum": ["window","aisle","no preference"] }
+            },
+            "required": ["confirmBooking"]
+        }
+    }
+}</code></pre>
+            </section>
+
+            <section>
+                <h2>Elicitation example</h2>
+                <p><img src="assets/elicitation-flow.png" alt="Elicitation example" style="max-width:100%;height:auto"></p>
+            </section>
+
+            <!-- Client examples: Sampling -->
+            <section>
+                <h2>Client example — Sampling</h2>
+                <p>Server asks client to perform an LLM completion on its behalf:</p>
+                <pre><code>{
+    "jsonrpc": "2.0",
+    "method": "sampling/complete",
+    "params": {
+        "messages": [ { "role": "user", "content": "Analyze these flight options and recommend the best choice:\n[47 flights]" } ],
+        "modelPreferences": { "hints":[{"name":"claude-sonnet-4-20250514"}], "costPriority":0.3, "speedPriority":0.2, "intelligencePriority":0.9 },
+        "maxTokens": 1500
+    }
+}</code></pre>
+            </section>
+
+            <section>
+                <h2>Sampling example</h2>
+                <p><img src="assets/sampling-flow.png" alt="Sampling example" style="max-width:100%;height:auto"></p>
+            </section>
+
+            <!-- Client examples: Logging -->
+            <section>
+                <h2>Client example — Logging</h2>
+                <p>Server emits logs to the client for debugging/monitoring:</p>
+                <pre><code>{
+    "jsonrpc": "2.0",
+    "method": "logging/log",
+    "params": {
+        "level": "info",
+        "message": "Tool executed: searchFlights",
+        "meta": { "tool": "searchFlights", "requestId": "abc123" }
+    }
+}</code></pre>
             </section>
 
             <!-- Lifecycle & discovery -->
@@ -91,30 +238,43 @@
                 <p>Notifications (e.g., tools/list_changed) enable real-time updates.</p>
             </section>
 
-            <!-- Transports -->
+            <!-- Notifications -->
             <section>
-                <h2>Transports</h2>
+                <h2>Notifications</h2>
+                <p>Notifications provide real-time updates from servers to clients/hosts:</p>
                 <ul>
-                    <li><strong>Stdio</strong>: local process IPC (fast, no network).</li>
-                    <li><strong>Streamable HTTP</strong>: remote servers with optional SSE streaming.</li>
-                    <li><strong>Tab / Browser transports</strong>: used by WebMCP / MCP‑B (in-page/tab servers).</li>
+                    <li>Common events: <code>tools/list_changed</code>, <code>resources/changed</code>, <code>tasks/updated</code>, <code>prompts/updated</code>.</li>
+                    <li>Transports may deliver notifications via SSE, message frames, or in-process callbacks.</li>
+                    <li>Notifications should include stable IDs and minimal payloads to enable efficient reconciliation.</li>
                 </ul>
             </section>
 
-                        <!-- Tool execution example -->
-                        <section>
-                                <h2>Tool execution flow (example)</h2>
-                                <ol>
-                                        <li>Client calls <code>tools/call</code> with tool name and arguments.</li>
-                                        <li>Server validates against tool input schema and executes.</li>
-                                        <li>Server returns <code>content</code> array + structured output for the host.</li>
-                                </ol>
-                        </section>
+            <!-- Transport layer (detailed) -->
+            <section>
+                <h2>Transport Layers</h2>
+                <p>Transports carry JSON-RPC messages; choose based on locality, auth and streaming needs:</p>
+                <ul>
+                    <li><strong>Stdio</strong> — local IPC, low-latency; avoid writing RPC to stdout and use stderr/files for logs.</li>
+                    <li><strong>Streamable HTTP</strong> — use bearer/OAuth for auth; support SSE or chunked streaming for long-running responses.</li>
+                    <li><strong>Tab / Browser</strong> — in-page bridges for WebMCP / MCP‑B using postMessage or navigator.modelContext APIs and origin-scoped permissions.</li>
+                </ul>
+            </section>
 
-                        <!-- Tool execution example: code -->
-                        <section>
-                                <h3>Tool execution — example (JSON-RPC)</h3>
-                                <pre><code>// 1) initialize (client -> server)
+            <!-- Tool execution example -->
+            <section>
+                <h2>Tool execution flow (example)</h2>
+                <ol>
+                    <li>Client calls <code>tools/call</code> with tool name and arguments.</li>
+                    <li>Server validates against tool input schema and executes.</li>
+                    <li>Server returns <code>content</code> array + structured output for the host.</li>
+                </ol>
+            </section>
+
+            <!-- Tool execution example: code -->
+            <!-- Tasks feature -->
+            <section>
+                <h3>Tool execution — example (JSON-RPC)</h3>
+                <pre><code>// 1) initialize (client -> server)
 POST /initialize
 Content-Type: application/json
 
@@ -147,11 +307,21 @@ Content-Type: application/json
     "id": 3
 }
                                 </code></pre>
-                        </section>
+            </section>
+
+            <section>
+                <h2>Tasks (new feature)</h2>
+                <p>Long-running or asynchronous work is modeled as tasks:</p>
+                <ul>
+                    <li>Create/claim/workflow endpoints: `tasks/create`, `tasks/status`, `tasks/cancel`.</li>
+                    <li>Support status updates, progress, result delivery (polling or streamed notifications).</li>
+                    <li>Tasks enable durable work across restarts and multi-step operations with retry semantics.</li>
+                </ul>
+            </section>
 
             <!-- Building servers -->
             <section>
-                <h2>Build an MCP server (quick)</h2>
+                <h2>Build an MCP server</h2>
                 <ul>
                     <li>Define tools/resources/prompts and JSON Schemas for inputs/outputs.</li>
                     <li>Choose transport (stdio for local, HTTP for remote, Tab for browser).</li>
@@ -187,7 +357,7 @@ if __name__ == '__main__':
 
             <!-- Building clients -->
             <section>
-                <h2>Build an MCP client (quick)</h2>
+                <h2>Build an MCP client</h2>
                 <ul>
                     <li>Create a ClientSession over the chosen transport and call <code>initialize</code>.</li>
                     <li>Use <code>tools/list</code> to discover capabilities and register them with the host.</li>
@@ -229,38 +399,18 @@ print('Result:', resp)
                 </ul>
             </section>
 
-            <!-- SDKs & examples -->
-            <section>
-                <h2>SDKs &amp; examples</h2>
-                <p>Official SDKs simplify lifecycle, transport handling, and primitive helpers (Python, TypeScript, Go).</p>
-                <p>Include short examples and quickstart repos for integrators (link in notes).</p>
-                <p>TypeScript (server) example using streamable HTTP:</p>
-                <pre><code>import { McpServer } from '@modelcontextprotocol/sdk/server'
-import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp'
-
-const server = new McpServer({ name: 'demo-ts', version: '0.1.0' })
-
-server.registerTool('add', { description: 'Add two numbers' }, async ({ a, b }) =&gt; ({ structuredContent: { sum: a + b }, content: [{ type: 'text', text: `sum=${a+b}` }] }))
-
-// wire into express/HTTP
-// see SDK docs for full example
-                </code></pre>
-            </section>
-
             <!-- Security -->
             <section>
                 <h2>Security &amp; permissions</h2>
                 <ul>
                     <li>Authenticate transports (OAuth or tokens) for remote servers.</li>
                     <li>Require explicit user approval for sensitive actions (file access, send email).</li>
-                    <li>Log to stderr or files for stdio servers; never write JSON-RPC to stdout.</li>
                 </ul>
                 <p>Example: curl with bearer token for a protected streamable HTTP MCP server:</p>
                 <pre><code>curl -X POST https://mcp.example.com/request \
   -H 'Authorization: Bearer $MCP_TOKEN' \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"sensitiveOp","kwargs":{}},"id":42}'
-                </code></pre>
+  -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"sensitiveOp","kwargs":{}},"id":42}'</code></pre>
             </section>
 
             <!-- Developer tools: Inspector -->
@@ -292,7 +442,7 @@ server.registerTool('add', { description: 'Add two numbers' }, async ({ a, b }) 
             <!-- WebMCP quick example -->
             <section>
                 <h2>Quick WebMCP example</h2>
-                                <pre><code>// in-page WebMCP example
+                <pre><code>// in-page WebMCP example
 import '@mcp-b/global'
 import { z } from 'zod'
 
@@ -334,16 +484,16 @@ registerTool({
             </section>
 
             <!-- Demo slide (KEEP) -->
-                        <section>
-                                <h2>Demo</h2>
-                                <p>We have a demo that shows a running MCP server and a client interaction.</p>
-                                <pre><code>python3 presentation/mcp_server.py
+            <section>
+                <h2>Demo</h2>
+                <p>We have a demo that shows a running MCP server and a client interaction.</p>
+                <pre><code>python3 presentation/mcp_server.py
 # then call (example):
 curl -s -X POST http://localhost:8765/invoke \
     -H 'Content-Type: application/json' \
     -d '{"function":"get_wade","args":[]}'
                                 </code></pre>
-                        </section>
+            </section>
 
             <!-- Closing & next steps -->
             <section>
