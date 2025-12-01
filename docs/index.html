@@ -16,21 +16,8 @@
             <section>
                 <h1>MCP &amp; MCP-B</h1>
                 <p>A concise guide and practical walkthrough</p>
-                <p><em>Presentation by Stoica Tedy &amp; Fruna Dan</em></p>
-            </section>
-
-            <!-- Agenda -->
-            <section>
-                <h2>Agenda</h2>
-                <ol>
-                    <li>What is MCP? Why it matters</li>
-                    <li>Architecture &amp; core primitives (tools, resources, prompts)</li>
-                    <li>Transports, lifecycle and discovery</li>
-                    <li>Building with MCP: servers &amp; clients (quick walkthrough)</li>
-                    <li>MCP‑B: browser-native model context</li>
-                    <li>Security, best practices, SDKs &amp; developer tools</li>
-                    <li>Use cases, demo pointer, next steps</li>
-                </ol>
+                <p><em>Presentation by Stoica Tedy &amp; Frunza Dan</em></p>
+                <p>e*iπ = -1</p>
             </section>
 
             <!-- What is MCP -->
@@ -409,6 +396,48 @@ print('Result:', resp)
   -H 'Authorization: Bearer $MCP_TOKEN' \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"sensitiveOp","kwargs":{}},"id":42}'</code></pre>
+            </section>
+
+            <!-- WebMCP / MCP-B intro -->
+            <section>
+                <h2>WebMCP / MCP‑B (browser-native)</h2>
+                <p>WebMCP exposes website functions via <code>navigator.modelContext</code>; MCP‑B provides the browser reference implementation and extension.</p>
+                <ul>
+                    <li>Zero-backend option: run in-page, tools inherit the user's session &amp; permissions.</li>
+                    <li>Useful for in-page automation (add-to-cart, form helpers) with human-in-the-loop control.</li>
+                </ul>
+            </section>
+
+            <!-- How WebMCP works -->
+            <section>
+                <h2>How WebMCP / MCP‑B works</h2>
+                <ol>
+                    <li>Install <code>@mcp-b/global</code> (polyfill) or use the WebMCP API.</li>
+                    <li>Register tools (JS functions) with <code>registerTool()</code>.</li>
+                    <li>AI agents discover and call tools via the MCP‑B extension or assistant bridges.</li>
+                </ol>
+            </section>
+
+            <!-- WebMCP quick example -->
+            <section>
+                <h2>Quick WebMCP example</h2>
+                <pre><code>// in-page WebMCP example
+import '@mcp-b/global'
+import { z } from 'zod'
+
+registerTool({
+    name: 'add_to_cart',
+    description: 'Add product to cart using current session',
+    inputSchema: z.object({ productId: z.string(), quantity: z.number().min(1).default(1) }),
+    async handler(ctx, args) {
+        // use fetch with user's cookies/session
+        await fetch(`/cart/add`, { method: 'POST', credentials: 'include', body: JSON.stringify(args) })
+        return { success: true }
+    }
+})
+
+// client (assistant) will call via MCP‑B bridge/extension
+                                </code></pre>
             </section>
 
             <!-- Developer tools: Inspector -->
